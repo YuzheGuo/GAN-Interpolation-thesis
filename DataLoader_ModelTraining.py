@@ -9,8 +9,12 @@ import torch
 import os
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import normalization as n
 
 torch.cuda.empty_cache()
+#%%
+print(n.PM25_min, n.PM25_max)
+print(O3_min, O3_max)
 
 # %% [markdown]
 # - 处理数据，拆开24h，已经搞定，O3_numpy_split
@@ -73,6 +77,8 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
 def default_loader(path):
     '''given an input of path, return the tensor file'''
     arr = np.load(path)[np.newaxis, :]
+    print(arr.min(), arr.max())
+    arr = (arr-normalization.Min)/(normalization.Max - normalization.Min)
     img_tensor = torch.from_numpy(arr)
     return img_tensor
 
