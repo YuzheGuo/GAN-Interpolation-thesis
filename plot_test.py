@@ -1,7 +1,10 @@
-def plot_distribution(data_array: np.array):
+#%%
+import numpy as np
+import matplotlib.pyplot as plt
+def plot_distribution(data_array: np.array, label=None, save_folder=None):
     '''
     输入二维的array，输出相应的面积图片
-    这里人为定义了vmax的数值，之后可能需要改改
+    cal the max and min for the color bar
     '''
     shape = data_array.shape
     x = np.arange(0, shape[1])  # len = 11
@@ -16,4 +19,18 @@ def plot_distribution(data_array: np.array):
                         vmin=data_array.min(),
                         cmap='Blues')
     fig.colorbar(pcm, ax=ax)
-    plt.show()
+    print(label)
+    if not save_folder:
+        plt.show()
+    else:
+        path = "".join([save_folder, "/", "plot-{}.jpg".format(label)])
+        plt.savefig(path)
+# %%
+path = "data/O3_hourly/20190708-0.npy"
+arr = np.load(path, allow_pickle=True)
+plot_distribution(arr, save_folder="saved/", label="hourly")
+# %%
+path = "data/O3_hourly_sampleByStation/20190708-0.npy"
+arr = np.load(path, allow_pickle=True)
+plot_distribution(arr, save_folder="saved/", label="hourly-sample")
+# %%

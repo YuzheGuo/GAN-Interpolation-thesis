@@ -109,7 +109,7 @@ class trainDataset(Dataset):
 
 
 # %%
-batchSize = 20
+batchSize = 10
 realBase = 'data/O3_hourly/'
 sampleBase = 'data/O3_hourly_sampleByStation/'
 print(os.listdir())
@@ -283,6 +283,7 @@ D_losses = []
 iters = 0
 epochNum = 5
 displayStep = 1
+GTrainNumber = 2
 # batchSize = 20
 
 print("Starting Training Loop...")
@@ -332,17 +333,22 @@ for epoch in range(epochNum):
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
-        netG.zero_grad()
-        label.fill_(1)  # fake labels are real for generator cost
+
+        for i in range(GTrainNumber):
+            print("the {} time of training G".format(i))
+            # fake = netG(sample_img.detach())
+            fake = netG(sample_img)
+            netG.zero_grad()
+            label.fill_(1)  # fake labels are real for generator cost
         # Since we just updated D, perform another forward pass of all-fake batch through D
-        output = netD(fake, sample_img)
+            output = netD(fake, sample_img)
         # Calculate G's loss based on this output
-        errG = criterion(output, label)
+            errG = criterion(output, label)
         # Calculate gradients for G
-        errG.backward()
-        D_G_z2 = output.mean().item()
+            errG.backward()
+            D_G_z2 = output.mean().item()
         # Update G
-        optimizerG.step()
+            optimizerG.step()
 
         #         Output training stats
         if i % displayStep == 0:
