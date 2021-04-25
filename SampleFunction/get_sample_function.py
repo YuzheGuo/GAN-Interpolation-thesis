@@ -16,7 +16,7 @@ import pickle
 def get_location_array(basePath):
     # print(os.listdir())
     nameList = os.listdir(basePath)
-    path = basePath + nameList[1]
+    path = basePath + nameList[10]
     file_obj = nc.Dataset(path)
     lon = file_obj.variables['longitude'][:]
     lat = file_obj.variables['latitude'][:]
@@ -97,8 +97,9 @@ def SampleByStation(data_arr: np.array, IndexSet: set)-> np.array:
 if __name__=="__main__":
 
     '''get the Set of index'''
-    # basePath = 'china_camx/'
-    # res_arr = get_location_array(basePath)
+    basePath = 'D:/大学/大四上/毕业设计-GAN插值-空气质量模型/WorkSpace-thesis/Cmax_test/data/china_camx_original/'
+    res_arr = get_location_array(basePath)
+    print(res_arr)
     # path = 'station_location.xlsx'
     # NationalStationLocationSet = get_national_station_location_set(path)
     # IndexSet = get_index_set(res_arr, NationalStationLocationSet)

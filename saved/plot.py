@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #%%
-arr = np.load("loss-64batchsize.npy", allow_pickle=True)
+arr = np.load("O3-loss-64batchsize-0001rate-normalize_uniform.npy", allow_pickle=True)
 # %%
 arr.shape
 # %%
