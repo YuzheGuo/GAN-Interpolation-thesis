@@ -26,11 +26,20 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
         path = "".join([save_folder, "/", "plot-{}.jpg".format(label)])
         plt.savefig(path)
 # %%
-path = "data/O3_hourly/20190708-0.npy"
-arr = np.load(path, allow_pickle=True)
-plot_distribution(arr, save_folder="saved/", label="hourly")
+# path = "data/O3_hourly/20190708-0.npy"
+# arr = np.load(path, allow_pickle=True)
+# plot_distribution(arr, save_folder="saved/", label="hourly")
+# # %%
+# path = "data/O3_hourly_sampleByStation/20190708-0.npy"
+# arr = np.load(path, allow_pickle=True)
+# plot_distribution(arr, save_folder="saved/", label="hourly-sample")
 # %%
-path = "data/O3_hourly_sampleByStation/20190708-0.npy"
-arr = np.load(path, allow_pickle=True)
-plot_distribution(arr, save_folder="saved/", label="hourly-sample")
+arr = np.load('loss.npy', allow_pickle=True)
+print(arr[0][0])
+# %%
+plt.figure(dpi=150)
+plt.plot(arr[0])
+plt.plot(arr[1])
+plt.xlabel("batch size")
+plt.ylabel("loss")
 # %%

@@ -283,7 +283,9 @@ D_losses = []
 iters = 0
 epochNum = 5
 displayStep = 1
-GTrainNumber = 2
+GTrainNumber = 3 # the num of G trained to 1 D changed
+maxGap = 10 # gap is the loss change amount
+suspect_data_list = [] # if succeed gap, then append list
 # batchSize = 20
 
 print("Starting Training Loop...")
@@ -334,10 +336,10 @@ for epoch in range(epochNum):
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
 
-        for i in range(GTrainNumber):
-            print("the {} time of training G".format(i))
+        for j in range(GTrainNumber):
+            print("the {} time of training G".format(j))
             # fake = netG(sample_img.detach())
-            fake = netG(sample_img)
+            fake = netG(sample_img) # add to debug
             netG.zero_grad()
             label.fill_(1)  # fake labels are real for generator cost
         # Since we just updated D, perform another forward pass of all-fake batch through D
@@ -350,6 +352,8 @@ for epoch in range(epochNum):
         # Update G
             optimizerG.step()
 
+        if i>1 and errG.item()-G_losses[-1] > maxGap:
+            suspect_data_list.append([i, data])
         #         Output training stats
         if i % displayStep == 0:
             print(
@@ -358,10 +362,10 @@ for epoch in range(epochNum):
                    errG.item(), D_x, D_G_z1, D_G_z2))
             plot_distribution(netG(sample_img)[0][0].cpu().detach(),
                               label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res_plot")
+                              save_folder="saved/res-plot-G2")
             plot_distribution(real_img[0][0].cpu(),
                               label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res_plot")
+                              save_folder="saved/res-plot-G2")
 
         # Save Losses for plotting later
         G_losses.append(errG.item())
@@ -374,5 +378,6 @@ for epoch in range(epochNum):
         #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
 
         iters += 1
+        np.save('loss-g3.npy', np.array([G_losses, D_losses]))
 
 # %%
