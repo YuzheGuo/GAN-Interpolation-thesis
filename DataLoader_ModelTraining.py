@@ -109,9 +109,9 @@ class trainDataset(Dataset):
 
 
 # %%
-batchSize = 10
-realBase = 'data/O3_hourly/'
-sampleBase = 'data/O3_hourly_sampleByStation/'
+batchSize = 128
+realBase = 'data/O3_hourly_32/'
+sampleBase = 'data/O3_hourly_32_sample_by_station/'
 print(os.listdir())
 #%%
 DataSet = trainDataset(realBase, sampleBase)
@@ -128,105 +128,78 @@ trainLoader = DataLoader(DataSet, batch_size=batchSize, shuffle=True)
 class Generator(nn.Module):
     def __init__(self, nc, ngf):
         super(Generator, self).__init__()
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(nc, ngf, kernel_size=4, stride=2, padding=(1, 2)),
-            nn.BatchNorm2d(ngf), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(ngf, ngf * 2, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ngf * 2), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ngf * 4), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer4 = nn.Sequential(
-            nn.ConvTranspose2d(ngf * 4,
-                               ngf * 2,
-                               kernel_size=4,
-                               stride=2,
-                               padding=1), nn.BatchNorm2d(ngf * 2), nn.ReLU())
-
-        self.layer5 = nn.Sequential(
-            nn.ConvTranspose2d(ngf * 2,
-                               ngf,
-                               kernel_size=4,
-                               stride=2,
-                               padding=1), nn.BatchNorm2d(ngf), nn.ReLU())
-
-        # the activate function has been modified to Sigmoid()
-        self.layer6 = nn.Sequential(
-            nn.ConvTranspose2d(ngf,
-                               nc,
-                               kernel_size=4,
-                               stride=2,
-                               padding=(1, 2)), nn.Sigmoid())
-
-    def forward(self, _cpLayer, show_process=False):
+        self.layer1 = nn.Sequential(nn.Conv2d(nc,ngf,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ngf),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 16 x 16 x 64
+        self.layer2 = nn.Sequential(nn.Conv2d(ngf,ngf*2,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ngf*2),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 8 x 8 x 128
+        
+        self.layer3 = nn.Sequential(nn.Conv2d(ngf*2,ngf*4,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ngf*4),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 4 x 4 x 256                     
+        # 4 x 4 x 256
+        self.layer4 = nn.Sequential(nn.ConvTranspose2d(ngf*4,ngf*2,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ngf*2),
+                                 nn.ReLU())
+        # 8 x 8 x 128
+        self.layer5 = nn.Sequential(nn.ConvTranspose2d(ngf*2,ngf,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ngf),
+                                 nn.ReLU())
+        # 16 x 16 x 64
+        self.layer6 = nn.Sequential(nn.ConvTranspose2d(ngf,nc,kernel_size=4,stride=2,padding=1),
+                                 nn.Sigmoid())
+        # 32 x 32 x 1
+    def forward(self,_cpLayer):
         out = self.layer1(_cpLayer)
-        if show_process: print(out.size())
         out = self.layer2(out)
-        if show_process: print(out.size())
         out = self.layer3(out)
-        if show_process: print(out.size())
         out = self.layer4(out)
-        if show_process: print(out.size())
         out = self.layer5(out)
-        if show_process: print(out.size())
         out = self.layer6(out)
-        if show_process: print(out.size())
         return out
-
-
 # for i, data in enumerate(trainLoader):
 #     break
 # netG = Generator(1, 64)
 # netG(data[1])
 # netG(data[1]).size()
 
-
 class Discriminator(nn.Module):
-    def __init__(self, nc, ndf):
-        super(Discriminator, self).__init__()
-        self.layer1_image = nn.Sequential(
-            nn.Conv2d(nc, ndf // 2, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ndf // 2), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer1_cp = nn.Sequential(
-            nn.Conv2d(nc, ndf // 2, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ndf // 2), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(ndf, ndf * 2, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ndf * 2), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(ndf * 2, ndf * 4, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ndf * 4), nn.LeakyReLU(0.2, inplace=True))
-
-        self.layer4 = nn.Sequential(
-            nn.Conv2d(ndf * 4, ndf * 8, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(ndf * 8), nn.LeakyReLU(0.2, inplace=True))
-        # the final layer is Linear!
-
-        self.layer5 = nn.Sequential(
-            nn.Conv2d(ndf * 8, 1, kernel_size=(13, 16), stride=2),
-            nn.Sigmoid())
-
-    def forward(self, real_img, sample_img, show_process=False):
-        out_1 = self.layer1_image(real_img)
-        out_2 = self.layer1_cp(sample_img)
-        out = self.layer2(torch.cat((out_1, out_2), 1))
-        # print(out.size())
+    def __init__(self,nc,ndf):
+        super(Discriminator,self).__init__()
+        self.layer1_real = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
+                                 #nn.BatchNorm2d(ndf/2),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 16 x 16
+        self.layer1_sample = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
+                                 #nn.BatchNorm2d(ndf/2),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 16 x 16
+        self.layer2 = nn.Sequential(nn.Conv2d(ndf,ndf*2,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ndf*2),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 8 x 8
+        
+        self.layer3 = nn.Sequential(nn.Conv2d(ndf*2,ndf*4,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ndf*4),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # 4 x 4
+        
+        self.layer4 = nn.Sequential(nn.Conv2d(ndf*4,1,kernel_size=4,stride=1,padding=0),
+                                 nn.Sigmoid())
+        # 1
+        
+    def forward(self,real,sample):
+        
+        out_1 = self.layer1_real(real)
+        out_2 = self.layer1_sample(sample)        
+        out = self.layer2(torch.cat((out_1,out_2),1))
         out = self.layer3(out)
-        # print(out.size())
         out = self.layer4(out)
-        # print(out.size())
-        if show_process: print(out.size())
-        out = self.layer5(out).view(-1)
-        return out
-
-
+        return out.view(-1, )
 # netD = Discriminator(1, 64)
 # out = netD(data[0], data[1])
 # out
@@ -283,7 +256,7 @@ D_losses = []
 iters = 0
 epochNum = 5
 displayStep = 1
-GTrainNumber = 3 # the num of G trained to 1 D changed
+GTrainNumber = 1 # the num of G trained to 1 D changed
 maxGap = 10 # gap is the loss change amount
 suspect_data_list = [] # if succeed gap, then append list
 # batchSize = 20
@@ -309,6 +282,7 @@ for epoch in range(epochNum):
         # Forward pass real batch through D
         output = netD(real_img, sample_img)
         # Calculate loss on all-real batch
+        print(output.size(), label.size())
         errD_real = criterion(output, label)
         # Calculate gradients for D in backward pass
         errD_real.backward()
@@ -362,10 +336,10 @@ for epoch in range(epochNum):
                    errG.item(), D_x, D_G_z1, D_G_z2))
             plot_distribution(netG(sample_img)[0][0].cpu().detach(),
                               label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-G2")
+                              save_folder="saved/res-plot-32-g1")
             plot_distribution(real_img[0][0].cpu(),
                               label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-G2")
+                              save_folder="saved/res-plot-32-g1")
 
         # Save Losses for plotting later
         G_losses.append(errG.item())
@@ -378,6 +352,6 @@ for epoch in range(epochNum):
         #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
 
         iters += 1
-        np.save('loss-g3.npy', np.array([G_losses, D_losses]))
+        # np.save('loss-g3.npy', np.array([G_losses, D_losses]))
 
 # %%
