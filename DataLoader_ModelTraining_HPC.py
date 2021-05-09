@@ -9,15 +9,37 @@ import torch
 import os
 import torch.optim as optim
 import matplotlib.pyplot as plt
-import normalization as n
-
 torch.cuda.empty_cache()
-#%%
-print(n.PM25_min, n.PM25_max)
-print(n.O3_min, n.O3_max)
-data_type = "O3" # PM2.5
-'''set up device: cuda or cpu'''
-device = 'cpu'
+print("""import finished""")
+
+O3_min, O3_max = 0.0, 0.2475029081106186
+pm25_min, pm25_max = 0.0, 422.7541
+
+# %% [markdown]
+# - 处理数据，拆开24h，已经搞定，O3_numpy_split
+# - 增加data的维度，写sampling的函数，写好dataloader
+# - 调整网络结构，跑通网络
+# - 写好训练的函数，进行训练
+# %% [markdown]
+# 目前存在的问题：
+# - 数据标准化的问题，涉及到网络的结构
+# -  size的大小的问题
+# %% [markdown]
+# ## 拆开24h
+
+# %%
+# base = 'data_O3_sample_numpy/'
+# fileName = os.listdir(base)
+# for name in fileName:
+#     arr = np.load(base+name)
+#     for i in range(len(arr)):
+#         _arr = arr[i]
+#         savePath = 'O3_sample_numpy_split/'+name[:name.find('-')]+'-{}-sample.npy'.format(i)
+#         np.save(savePath, _arr)
+
+# %% [markdown]
+# ## dataLoader
+
 # %%
 # preprocess = transforms.Compose([
 #     #transforms.Scale(256),
@@ -53,14 +75,19 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
 def default_loader(path):
     '''given an input of path, return the tensor file'''
     arr = np.load(path)[np.newaxis, :]
-    arr = (arr-n.O3_min)/(n.O3_max - n.O3_min)
+    arr = (arr - pm25_min) / (pm25_max - pm25_min)
     img_tensor = torch.from_numpy(arr)
     return img_tensor
 
 
+def default_loader(path):
+    '''given an input of path, return the tensor file'''
+    arr = np.load(path)[np.newaxis, :]
+    img_tensor = torch.from_numpy(arr)
+    return img_tensor
+
 # path = 'O3_numpy_split/20181215-3.npy'
 # array = default_loader(path)
-
 
 class trainDataset(Dataset):
     '''
@@ -68,10 +95,8 @@ class trainDataset(Dataset):
     '''
     def __init__(self, realBase, sampleBase, loader=default_loader):
         #定义好 image 的路径
-        self.realList = [realBase + name for name in os.listdir(realBase)]
-        self.sampleList = [
-            sampleBase + name for name in os.listdir(sampleBase)
-        ]
+        self.realList = [realBase+name for name in os.listdir(realBase)]
+        self.sampleList = [sampleBase+name for name in os.listdir(sampleBase)]                
         self.loader = loader
 
     def __getitem__(self, index):
@@ -82,60 +107,67 @@ class trainDataset(Dataset):
     def __len__(self):
         return len(self.realList)
 
-
+print("""function difination finished""")
 # %%
-batchSize = 128
-realBase = 'data/O3_hourly_32/'
-sampleBase = 'data/O3_hourly_32_sample_by_station/'
+batchSize = 64
+realBase = 'data/PM25_hourly/'
+sampleBase = 'data/PM25_hourly_sample_by_station/'
 print(os.listdir())
 #%%
 DataSet = trainDataset(realBase, sampleBase)
-trainLoader = DataLoader(DataSet, batch_size=batchSize, shuffle=True)
-
+trainLoader = DataLoader(DataSet, batch_size=batchSize,shuffle=True)
+print("""dataloader finised""")
 # %%
 # for i, data in enumerate(trainLoader):
 #     pass
-
 
 # print(data.size())
 # %%
 # the G, nc is number of channel, ngf is number of generater features
 class Generator(nn.Module):
     def __init__(self, nc, ngf):
-        super(Generator, self).__init__()
-        self.layer1 = nn.Sequential(nn.Conv2d(nc,ngf,kernel_size=4,stride=2,padding=1),
+        super(Generator,self).__init__()
+        self.layer1 = nn.Sequential(nn.Conv2d(nc,ngf,kernel_size=4,stride=2,padding=(1,2)),
                                  nn.BatchNorm2d(ngf),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 16 x 16 x 64
+        
         self.layer2 = nn.Sequential(nn.Conv2d(ngf,ngf*2,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ngf*2),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 8 x 8 x 128
+      
         
         self.layer3 = nn.Sequential(nn.Conv2d(ngf*2,ngf*4,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ngf*4),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 4 x 4 x 256                     
-        # 4 x 4 x 256
+      
         self.layer4 = nn.Sequential(nn.ConvTranspose2d(ngf*4,ngf*2,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ngf*2),
                                  nn.ReLU())
-        # 8 x 8 x 128
+      
         self.layer5 = nn.Sequential(nn.ConvTranspose2d(ngf*2,ngf,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ngf),
                                  nn.ReLU())
-        # 16 x 16 x 64
-        self.layer6 = nn.Sequential(nn.ConvTranspose2d(ngf,nc,kernel_size=4,stride=2,padding=1),
+        
+        # the activate function has been modified to Sigmoid()
+        self.layer6 = nn.Sequential(nn.ConvTranspose2d(ngf,nc,kernel_size=4,stride=2,padding=(1,2)),
                                  nn.Sigmoid())
-        # 32 x 32 x 1
-    def forward(self,_cpLayer):
+        
+    def forward(self,_cpLayer, show_process = False):
         out = self.layer1(_cpLayer)
+        if show_process: print(out.size())
         out = self.layer2(out)
+        if show_process: print(out.size())
         out = self.layer3(out)
+        if show_process: print(out.size())
         out = self.layer4(out)
+        if show_process: print(out.size())
         out = self.layer5(out)
+        if show_process: print(out.size())
         out = self.layer6(out)
+        if show_process: print(out.size())
         return out
+
+
 # for i, data in enumerate(trainLoader):
 #     break
 # netG = Generator(1, 64)
@@ -145,43 +177,51 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self,nc,ndf):
         super(Discriminator,self).__init__()
-        self.layer1_real = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
-                                 #nn.BatchNorm2d(ndf/2),
+        self.layer1_image = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ndf//2),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 16 x 16
-        self.layer1_sample = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
-                                 #nn.BatchNorm2d(ndf/2),
+        
+        self.layer1_cp = nn.Sequential(nn.Conv2d(nc,ndf//2,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ndf//2),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 16 x 16
+        
         self.layer2 = nn.Sequential(nn.Conv2d(ndf,ndf*2,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ndf*2),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 8 x 8
+
         
         self.layer3 = nn.Sequential(nn.Conv2d(ndf*2,ndf*4,kernel_size=4,stride=2,padding=1),
                                  nn.BatchNorm2d(ndf*4),
                                  nn.LeakyReLU(0.2,inplace=True))
-        # 4 x 4
+
         
-        self.layer4 = nn.Sequential(nn.Conv2d(ndf*4,1,kernel_size=4,stride=1,padding=0),
+        self.layer4 = nn.Sequential(nn.Conv2d(ndf*4,ndf*8,kernel_size=4,stride=2,padding=1),
+                                 nn.BatchNorm2d(ndf*8),
+                                 nn.LeakyReLU(0.2,inplace=True))
+        # the final layer is Linear!
+
+        self.layer5 = nn.Sequential(nn.Conv2d(ndf*8,1,kernel_size=(13, 16),stride=2),
                                  nn.Sigmoid())
-        # 1
         
-    def forward(self,real,sample):
-        
-        out_1 = self.layer1_real(real)
-        out_2 = self.layer1_sample(sample)        
+    def forward(self,real_img,sample_img, show_process=False):
+        out_1 = self.layer1_image(real_img)
+        out_2 = self.layer1_cp(sample_img)        
         out = self.layer2(torch.cat((out_1,out_2),1))
+        # print(out.size())
         out = self.layer3(out)
+        # print(out.size())
         out = self.layer4(out)
-        return out.view(-1, )
+        # print(out.size())
+        if show_process: print(out.size())
+        out = self.layer5(out).view(-1)
+        return out
+
 # netD = Discriminator(1, 64)
 # out = netD(data[0], data[1])
 # out
 
 # %% [markdown]
 # ## training
-
 
 # %%
 # custom weights initialization called on netG and netD
@@ -195,10 +235,11 @@ def weights_init(m):
 
 
 # %%
-netG = Generator(nc=1, ngf=64).to(device)
+netG = Generator(nc=1, ngf=64)
 netG = netG.apply(weights_init)
-netD = Discriminator(nc=1, ndf=64).to(device)
+netD = Discriminator(nc=1, ndf=64)
 netD = netD.apply(weights_init)
+print("""model init finished""")
 
 # %%
 # Initialize BCELoss function
@@ -211,15 +252,17 @@ criterion = nn.BCELoss()
 real_label = 1.
 fake_label = 0.
 
-lr = 0.0002
+lr = 0.0001
 beta1 = 0.5
 # Setup Adam optimizers for both G and D
 optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 
+
 # %%
 
 # plot_distribution(O3_con)
+
 
 # %%
 # Training Loop
@@ -230,34 +273,28 @@ G_losses = []
 D_losses = []
 iters = 0
 epochNum = 5
-displayStep = 1
-GTrainNumber = 1 # the num of G trained to 1 D changed
-maxGap = 10 # gap is the loss change amount
-suspect_data_list = [] # if succeed gap, then append list
-# batchSize = 20
+displayStep = 10
+save_folder = "saved/PM25_res_plot_001rate"
+loss_save_path = "saved/PM25-loss-64batchsize-001rate.npy"
 
 print("Starting Training Loop...")
 # For each epoch
 for epoch in range(epochNum):
     # For each batch in the dataloader
     for i, data in enumerate(trainLoader, 0):
-
+        
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         ## Train with all-real batch
         netD.zero_grad()
         # Format batch
-        real_img, sample_img = data[0].to(device), data[1].to(device)
+        real_img, sample_img = data[0], data[1]
         b_size = real_img.size(0)
-        label = torch.full((b_size, ),
-                           real_label,
-                           dtype=torch.float,
-                           device=device)
+        label = torch.full((b_size,), real_label, dtype=torch.float)
         # Forward pass real batch through D
         output = netD(real_img, sample_img)
         # Calculate loss on all-real batch
-        print(output.size(), label.size())
         errD_real = criterion(output, label)
         # Calculate gradients for D in backward pass
         errD_real.backward()
@@ -265,7 +302,7 @@ for epoch in range(epochNum):
 
         ## Train with all-fake batch
         # Generate batch of latent vectors
-
+        
         # Generate fake image batch with G
         fake = netG(sample_img)
         label.fill_(0)
@@ -284,49 +321,47 @@ for epoch in range(epochNum):
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
-
-        for j in range(GTrainNumber):
-            print("the {} time of training G".format(j))
-            # fake = netG(sample_img.detach())
-            fake = netG(sample_img) # add to debug
-            netG.zero_grad()
-            label.fill_(1)  # fake labels are real for generator cost
+        
+        netG.zero_grad()
+        label.fill_(1)  # fake labels are real for generator cost
         # Since we just updated D, perform another forward pass of all-fake batch through D
-            output = netD(fake, sample_img)
+        output = netD(fake, sample_img)
         # Calculate G's loss based on this output
-            errG = criterion(output, label)
+        errG = criterion(output, label)
         # Calculate gradients for G
-            errG.backward()
-            D_G_z2 = output.mean().item()
+        errG.backward()
+        D_G_z2 = output.mean().item()
         # Update G
-            optimizerG.step()
-
-        if i>1 and errG.item()-G_losses[-1] > maxGap:
-            suspect_data_list.append([i, data])
-        #         Output training stats
+        optimizerG.step()
+        
+#         Output training stats
         if i % displayStep == 0:
-            print(
-                '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
-                % (epoch, epochNum, i, len(trainLoader), errD.item(),
-                   errG.item(), D_x, D_G_z1, D_G_z2))
-            plot_distribution(netG(sample_img)[0][0].cpu().detach(),
+            print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                  % (epoch, epochNum, i, len(trainLoader),
+                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+            plot_distribution(netG(sample_img)[0][0].detach(),
                               label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-32-g1")
-            plot_distribution(real_img[0][0].cpu(),
+                              save_folder=save_folder)
+            plot_distribution(real_img[0][0],
                               label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-32-g1")
-
+                              save_folder=save_folder)
+            
         # Save Losses for plotting later
         G_losses.append(errG.item())
         D_losses.append(errD.item())
-
-        #         # Check how the generator is doing by saving G's output on fixed_noise
-        #         if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
-        #             with torch.no_grad():
-        #                 fake = netG(fixed_noise).detach().cpu()
-        #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-
+        
+#         # Check how the generator is doing by saving G's output on fixed_noise
+#         if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+#             with torch.no_grad():
+#                 fake = netG(fixed_noise).detach().cpu()
+#             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+        
         iters += 1
-        # np.save('loss-g3.npy', np.array([G_losses, D_losses]))
+
 
 # %%
+
+np.save(loss_save_path, np.array([G_losses, D_losses]))
+
+
+
