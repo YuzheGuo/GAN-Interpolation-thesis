@@ -20,7 +20,7 @@ print("the time is: ", time_str)
 torch.cuda.empty_cache()
 
 epochNum = 100
-batchSize = 128
+batchSize = 64
 displayStep = 10
 GTrainNumber = 1  # the num of G trained to 1 D changed
 maxGap = 10  # gap is the loss change amount
@@ -89,10 +89,7 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
 def default_loader(path):
     '''given an input of path, return the tensor file'''
     arr = np.load(path)[np.newaxis, :]
-    if data_type=='O3':
-        arr = (arr - n.O3_min) / (n.O3_max - n.O3_min)
-    else:
-        arr = (arr - n.PM25_min) / (n.PM25_max - n.PM25_min)
+    arr = (arr - n.O3_min) / (n.O3_max - n.O3_min)
     img_tensor = torch.from_numpy(arr)
     return img_tensor
 
@@ -258,6 +255,7 @@ print("Starting Training Loop...")
 print("epoch {}, batchsize {}".format(epochNum, batchSize))
 print("train {} time of G to 1 time of D".format(GTrainNumber))
 # For each epoch
+count = 0
 for epoch in range(epochNum):
     # For each batch in the dataloader
     for i, data in enumerate(trainLoader, 0):
@@ -269,76 +267,16 @@ for epoch in range(epochNum):
         netD.zero_grad()
         # Format batch
         real_img, sample_img = data[0].to(device), data[1].to(device)
-        b_size = real_img.size(0)
-        label = torch.full((b_size, ),
-                           real_label,
-                           dtype=torch.float,
-                           device=device)
-        # Forward pass real batch through D
-        output = netD(real_img, sample_img)
-        # Calculate loss on all-real batch
-        # print(output.size(), label.size())
-        errD_real = criterion(output, label)
-        # Calculate gradients for D in backward pass
-        errD_real.backward()
-        D_x = output.mean().item()
 
-        ## Train with all-fake batch
-        # Generate batch of latent vectors
-
-        # Generate fake image batch with G
-        fake = netG(sample_img)
-        label.fill_(0)
-        # Classify all fake batch with D
-        output = netD(fake.detach(), sample_img.detach())
-        # Calculate D's loss on the all-fake batch
-        errD_fake = criterion(output, label)
-        # Calculate the gradients for this batch
-        errD_fake.backward()
-        D_G_z1 = output.mean().item()
-        # Add the gradients from the all-real and all-fake batches
-        errD = errD_real + errD_fake
-        # Update D
-        optimizerD.step()
-
-        ############################
-        # (2) Update G network: maximize log(D(G(z)))
-        ###########################
-
-        for j in range(GTrainNumber):
-            # fake = netG(sample_img.detach())
-            fake = netG(sample_img)  # add to debug
-            netG.zero_grad()
-            label.fill_(1)  # fake labels are real for generator cost
-            # Since we just updated D, perform another forward pass of all-fake batch through D
-            output = netD(fake, sample_img)
-            # Calculate G's loss based on this output
-            errG = criterion(output, label)
-            # Calculate gradients for G
-            errG.backward()
-            D_G_z2 = output.mean().item()
-            # Update G
-            optimizerG.step()
-
-        if i > 1 and errG.item() - G_losses[-1] > maxGap:
-            print("on epoch {} batch {}, find G loss {}, exceed gap!!!".format(
-                epoch, i, errG.item()))
-            suspect_data_list.append([epoch, i, data])
+        if count == 289:
+            print(data.cpu())
+            break
+        count++
+        if count%10==0: print(count)
         #         Output training stats
-        if i > 0 and i % displayStep == 0:
-            print(
-                '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
-                % (epoch, epochNum, i, len(trainLoader), errD.item(),
-                   errG.item(), D_x, D_G_z1, D_G_z2))
-            plot_distribution(netG(sample_img)[0][0].detach().cpu(),
-                              label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder=save_folder)
-            plot_distribution(real_img[0][0].cpu(),
-                              label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder=save_folder)
+        
         # Save Losses for plotting later
-        G_losses.append(errG.item())
-        D_losses.append(errD.item())
+        
 
         #         # Check how the generator is doing by saving G's output on fixed_noise
         #         if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
@@ -346,8 +284,4 @@ for epoch in range(epochNum):
         #                 fake = netG(fixed_noise).detach().cpu()
         #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
         # np.save('loss-g3.npy', np.array([G_losses, D_losses]))
-
-    np.save(loss_save_path, np.array([G_losses, D_losses]))
-    np.save(suspect_data_list_save_path, np.array(suspect_data_list))
-
 #%%

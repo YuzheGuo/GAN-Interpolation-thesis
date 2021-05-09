@@ -34,7 +34,7 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
 # arr = np.load(path, allow_pickle=True)
 # plot_distribution(arr, save_folder="saved/", label="hourly-sample")
 # %%
-arr = np.load('loss-g3.npy', allow_pickle=True)
+arr = np.load('saved/loss-64batchsize.npy', allow_pickle=True)
 print(arr[0][0])
 # %%
 plt.figure(dpi=150)
@@ -43,3 +43,7 @@ plt.plot(arr[1])
 plt.xlabel("batch number")
 plt.ylabel("loss")
 # %%
+res = []
+lis = list(arr[0])
+for i in range(lis):
+    res.append()
