@@ -10,14 +10,44 @@ import os
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import normalization as n
-
-torch.cuda.empty_cache()
+import datetime
+torch.cuda.device_count()
+print("""import finished""")
 #%%
-print(n.PM25_min, n.PM25_max)
-print(n.O3_min, n.O3_max)
+time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+torch.cuda.empty_cache()
+
+epochNum = 5
+batchSize = 128
+displayStep = 10
+GTrainNumber = 1 # the num of G trained to 1 D changed
+maxGap = 10 # gap is the loss change amount
+
+suspect_data_list = [] # if succeed gap, then append list
+G_losses = []
+D_losses = []
+
+real_label = 1.
+fake_label = 0.
+
+lr = 0.0002
+beta1 = 0.5
+
+realBase = 'data/O3_hourly_32/'
+sampleBase = 'data/O3_hourly_32_sample_by_station/'
+save_folder = "saved/O3_res_plot_32-{}".format(time_str)
+os.mkdir(save_folder)
+loss_save_path = "saved/O3-loss-32size.npy"
+suspect_data_list_save_path = "saved/O3-suspect-data-32size.npy"
+
 data_type = "O3" # PM2.5
-'''set up device: cuda or cpu'''
-device = 'cpu'
+
+num_of_gpu = torch.cuda.device_count()
+device = 'cuda' if num_of_gpu>0 else 'cpu'
+
+print("pm25 min: {}, pm25 max: {}".format(n.PM25_min, n.PM25_max))
+print("pm25 min: {}, pm25 max: {}".format(n.O3_min, n.O3_max))
+print('the data is {}, the device is: {}'.format(data_type, device))
 # %%
 # preprocess = transforms.Compose([
 #     #transforms.Scale(256),
@@ -27,6 +57,8 @@ device = 'cpu'
 def plot_distribution(data_array: np.array, label=None, save_folder=None):
     '''
     输入二维的array，输出相应的面积图片
+    label: the label if this photo
+    save_folder: the folder to save
     cal the max and min for the color bar
     '''
     shape = data_array.shape
@@ -42,7 +74,6 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
                         vmin=data_array.min(),
                         cmap='Blues')
     fig.colorbar(pcm, ax=ax)
-    print(label)
     if not save_folder:
         plt.show()
     else:
@@ -82,21 +113,11 @@ class trainDataset(Dataset):
     def __len__(self):
         return len(self.realList)
 
-
-# %%
-batchSize = 128
-realBase = 'data/O3_hourly_32/'
-sampleBase = 'data/O3_hourly_32_sample_by_station/'
-print(os.listdir())
 #%%
 DataSet = trainDataset(realBase, sampleBase)
 trainLoader = DataLoader(DataSet, batch_size=batchSize, shuffle=True)
 
-# %%
-# for i, data in enumerate(trainLoader):
-#     pass
-
-
+print("""the dataLoader finished""")
 # print(data.size())
 # %%
 # the G, nc is number of channel, ngf is number of generater features
@@ -178,12 +199,6 @@ class Discriminator(nn.Module):
 # netD = Discriminator(1, 64)
 # out = netD(data[0], data[1])
 # out
-
-# %% [markdown]
-# ## training
-
-
-# %%
 # custom weights initialization called on netG and netD
 def weights_init(m):
     classname = m.__class__.__name__
@@ -208,35 +223,14 @@ criterion = nn.BCELoss()
 #  the progression of the generator
 
 # Establish convention for real and fake labels during training
-real_label = 1.
-fake_label = 0.
-
-lr = 0.0002
-beta1 = 0.5
 # Setup Adam optimizers for both G and D
 optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 
 # %%
-
-# plot_distribution(O3_con)
-
-# %%
-# Training Loop
-
-# Lists to keep track of progress
-img_list = []
-G_losses = []
-D_losses = []
-iters = 0
-epochNum = 5
-displayStep = 1
-GTrainNumber = 1 # the num of G trained to 1 D changed
-maxGap = 10 # gap is the loss change amount
-suspect_data_list = [] # if succeed gap, then append list
-# batchSize = 20
-
 print("Starting Training Loop...")
+print("epoch {}, batchsize {}".format(epochNum, batchSize))
+print("train {} time of G to 1 time of D".format(GTrainNumber))
 # For each epoch
 for epoch in range(epochNum):
     # For each batch in the dataloader
@@ -257,7 +251,7 @@ for epoch in range(epochNum):
         # Forward pass real batch through D
         output = netD(real_img, sample_img)
         # Calculate loss on all-real batch
-        print(output.size(), label.size())
+        # print(output.size(), label.size())
         errD_real = criterion(output, label)
         # Calculate gradients for D in backward pass
         errD_real.backward()
@@ -286,7 +280,6 @@ for epoch in range(epochNum):
         ###########################
 
         for j in range(GTrainNumber):
-            print("the {} time of training G".format(j))
             # fake = netG(sample_img.detach())
             fake = netG(sample_img) # add to debug
             netG.zero_grad()
@@ -302,19 +295,19 @@ for epoch in range(epochNum):
             optimizerG.step()
 
         if i>1 and errG.item()-G_losses[-1] > maxGap:
-            suspect_data_list.append([i, data])
+            print("on epoch {} batch {}, find G loss {}, exceed gap!!!".format(epoch, i, errG.item()))
+            suspect_data_list.append([epoch, i, data])
         #         Output training stats
         if i % displayStep == 0:
-            print(
-                '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
-                % (epoch, epochNum, i, len(trainLoader), errD.item(),
-                   errG.item(), D_x, D_G_z1, D_G_z2))
-            plot_distribution(netG(sample_img)[0][0].cpu().detach(),
+            print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                  % (epoch, epochNum, i, len(trainLoader),
+                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+            plot_distribution(netG(sample_img)[0][0].detach().cpu(),
                               label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-32-g1")
+                              save_folder=save_folder)
             plot_distribution(real_img[0][0].cpu(),
                               label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder="saved/res-plot-32-g1")
+                              save_folder=save_folder)
 
         # Save Losses for plotting later
         G_losses.append(errG.item())
@@ -325,8 +318,9 @@ for epoch in range(epochNum):
         #             with torch.no_grad():
         #                 fake = netG(fixed_noise).detach().cpu()
         #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-
-        iters += 1
         # np.save('loss-g3.npy', np.array([G_losses, D_losses]))
 
-# %%
+np.save(loss_save_path, np.array([G_losses, D_losses]))
+np.save(suspect_data_list_save_path, np.array(suspect_data_list))
+
+#%%

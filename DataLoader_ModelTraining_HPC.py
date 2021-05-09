@@ -15,37 +15,6 @@ print("""import finished""")
 O3_min, O3_max = 0.0, 0.2475029081106186
 pm25_min, pm25_max = 0.0, 422.7541
 
-# %% [markdown]
-# - 处理数据，拆开24h，已经搞定，O3_numpy_split
-# - 增加data的维度，写sampling的函数，写好dataloader
-# - 调整网络结构，跑通网络
-# - 写好训练的函数，进行训练
-# %% [markdown]
-# 目前存在的问题：
-# - 数据标准化的问题，涉及到网络的结构
-# -  size的大小的问题
-# %% [markdown]
-# ## 拆开24h
-
-# %%
-# base = 'data_O3_sample_numpy/'
-# fileName = os.listdir(base)
-# for name in fileName:
-#     arr = np.load(base+name)
-#     for i in range(len(arr)):
-#         _arr = arr[i]
-#         savePath = 'O3_sample_numpy_split/'+name[:name.find('-')]+'-{}-sample.npy'.format(i)
-#         np.save(savePath, _arr)
-
-# %% [markdown]
-# ## dataLoader
-
-# %%
-# preprocess = transforms.Compose([
-#     #transforms.Scale(256),
-#     #transforms.CenterCrop(224),
-#     transforms.Normalize(0, 1)
-# ])
 def plot_distribution(data_array: np.array, label=None, save_folder=None):
     '''
     输入二维的array，输出相应的面积图片
@@ -271,7 +240,6 @@ optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 img_list = []
 G_losses = []
 D_losses = []
-iters = 0
 epochNum = 5
 displayStep = 10
 save_folder = "saved/PM25_res_plot_001rate"
@@ -354,9 +322,7 @@ for epoch in range(epochNum):
 #         if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
 #             with torch.no_grad():
 #                 fake = netG(fixed_noise).detach().cpu()
-#             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-        
-        iters += 1
+#             img_list.append(vutils.make_grid(fake, padding=2, normalize=True)
 
 
 # %%
