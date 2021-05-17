@@ -256,6 +256,7 @@ print("epoch {}, batchsize {}".format(epochNum, batchSize))
 print("train {} time of G to 1 time of D".format(GTrainNumber))
 # For each epoch
 count = 0
+mean_list = []
 for epoch in range(epochNum):
     # For each batch in the dataloader
     for i, data in enumerate(trainLoader, 0):
@@ -264,15 +265,19 @@ for epoch in range(epochNum):
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         ## Train with all-real batch
-        netD.zero_grad()
         # Format batch
-        real_img, sample_img = data[0].to(device), data[1].to(device)
+        
+        mean_list.append([data[0].mean(), data[1].mean()])
 
         if count == 289:
-            print(data.cpu())
+            # print(data)
+            print(epoch, i)
             break
-        count++
-        if count%10==0: print(count)
+
+        count+=1
+        if count%10==0: 
+            print(count)
+            print(mean_list[-1])
         #         Output training stats
         
         # Save Losses for plotting later
@@ -285,3 +290,12 @@ for epoch in range(epochNum):
         #             img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
         # np.save('loss-g3.npy', np.array([G_losses, D_losses]))
 #%%
+plot_distribution(data[0][0][0])
+# %%
+data[0].mean()
+# %%
+x = [i[0] for i in mean_list]
+y = [i[1] for i in mean_list]
+plt.plot(y)
+
+# %%

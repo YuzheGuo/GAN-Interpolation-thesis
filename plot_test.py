@@ -34,16 +34,26 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
 # arr = np.load(path, allow_pickle=True)
 # plot_distribution(arr, save_folder="saved/", label="hourly-sample")
 # %%
-arr = np.load('saved/loss-64batchsize.npy', allow_pickle=True)
-print(arr[0][0])
+file_name = 'saved/PM25-loss-32size-20210510_013323.npy'
+arr = np.load(file_name, allow_pickle=True)
 # %%
 plt.figure(dpi=150)
-plt.plot(arr[0])
-plt.plot(arr[1])
+plt.plot(arr[0][:500], label="G")
+plt.plot(arr[1][:500], label="D")
 plt.xlabel("batch number")
 plt.ylabel("loss")
+plt.legend()
 # %%
 res = []
 lis = list(arr[0])
-for i in range(lis):
-    res.append()
+for i in range(len(lis)):
+    if i>=1:
+        gap = lis[i]-lis[i-1]
+        if gap>10: print(i, gap)
+        res.append(gap)
+# %%
+"""
+res = []...
+288 12.014533996582031
+289 10.784687042236328
+"""
