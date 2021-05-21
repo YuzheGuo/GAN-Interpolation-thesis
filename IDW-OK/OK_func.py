@@ -32,16 +32,29 @@ def array_to_dataframe(arr: np.array)-> pd.DataFrame:
             if val>0:
                 raw_data.append([x, y, val])
     return pd.DataFrame(raw_data, columns=['x', 'y', 'val'])
-#%%
-
-path = '../data/O3_hourly_32_sh/'
-arr = np.load(path+os.listdir(path)[10], allow_pickle=True)
-plot_distribution(arr)
-#%%
-df = array_to_dataframe(arr)
 # %%
-OK = OrdinaryKriging(df.x, df.y, df.val)
-xGrid = np.linspace(0, 32, 32)
-yGrid = np.linspace(0, 32, 32)
-z, ss = OK.execute('grid', xGrid, yGrid)
+
+def OK_interpolation(arr: np.array)-> np.array:
+    """
+    input: array need to be interpolate, zero is none
+    output: the array, which is interpolated.
+    note: the array_to_datefram function defined before this function
+    """
+    df = array_to_dataframe(arr)
+    OK = OrdinaryKriging(df.x, df.y, df.val)
+    xGrid = np.linspace(0, 32, 32)
+    yGrid = np.linspace(0, 32, 32)
+    z, ss = OK.execute('grid', xGrid, yGrid)
+    return z
+# %%
+#%%
+if __name__ == "__main__":
+
+    path = '../data/O3_hourly_32_sh_sample_by_station/'
+    arr = np.load(path+os.listdir(path)[20], allow_pickle=True)
+    plot_distribution(arr)
+    z = OK_interpolation(arr)
+    plot_distribution(z)
+
+
 # %%
