@@ -12,14 +12,13 @@ import matplotlib.pyplot as plt
 import normalization as n
 import datetime
 
-torch.cuda.device_count()
+torch.cuda.empty_cache()
 print("""import finished""")
 #%%
 time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-print("the time is: ", time_str)
-torch.cuda.empty_cache()
+print("the time_str is: ", time_str)
 
-epochNum = 100
+epochNum = 200
 batchSize = 128
 displayStep = 10
 GTrainNumber = 1  # the num of G trained to 1 D changed
@@ -37,20 +36,28 @@ beta1 = 0.5
 
 data_type = "PM25"  # PM25
 
-realBase = 'data/{}_hourly_32/'.format(data_type)
-sampleBase = 'data/{}_hourly_32_sample_by_station/'.format(data_type)
-save_folder = "saved/{}_res_plot_32-{}".format(data_type, time_str)
-os.mkdir(save_folder)
+realBase = 'data/data-final-copy/{}_hourly_32_sh/'.format(data_type)
+sampleBase = 'data/data-final-copy/{}_hourly_32_sh_sample_by_station/'.format(
+    data_type)
+image_res_save_folder = "saved/{}_res_plot_32-{}".format(data_type, time_str)
+
+os.mkdir(image_res_save_folder)
+print("create dir for save results: {}".format(image_res_save_folder))
+
 loss_save_path = "saved/{}-loss-32size-{}.npy".format(data_type, time_str)
-suspect_data_list_save_path = "saved/{}-suspect-data-32size-{}.npy".format(data_type, time_str)
+suspect_data_list_save_path = "saved/{}-suspect-data-32size-{}.npy".format(
+    data_type, time_str)
 
 num_of_gpu = torch.cuda.device_count()
 device = 'cuda' if num_of_gpu > 0 else 'cpu'
 
+print('the data type is {}, avaliable gpu is {}, device is: {}'.format(
+    data_type, num_of_gpu, device))
 print("pm25 min: {}, pm25 max: {}".format(n.PM25_min, n.PM25_max))
 print("O3 min: {}, O3 max: {}".format(n.O3_min, n.O3_max))
-print('the data is {}, avaliable gpu is {}, device is: {}'.format(
-    data_type, num_of_gpu, device))
+print()
+print("epoch {}, batchsize {}".format(epochNum, batchSize))
+print("train {} time of G to 1 time of D".format(GTrainNumber))
 
 
 # %%
@@ -59,11 +66,11 @@ print('the data is {}, avaliable gpu is {}, device is: {}'.format(
 #     #transforms.CenterCrop(224),
 #     transforms.Normalize(0, 1)
 # ])
-def plot_distribution(data_array: np.array, label=None, save_folder=None):
+def plot_distribution(data_array: np.array, label=None, image_res_save_folder=None):
     '''
     输入二维的array，输出相应的面积图片
     label: the label if this photo
-    save_folder: the folder to save
+    image_res_save_folder: the folder to save
     cal the max and min for the color bar
     '''
     shape = data_array.shape
@@ -79,17 +86,17 @@ def plot_distribution(data_array: np.array, label=None, save_folder=None):
                         vmin=data_array.min(),
                         cmap='Blues')
     fig.colorbar(pcm, ax=ax)
-    if not save_folder:
+    if not image_res_save_folder:
         plt.show()
     else:
-        path = "".join([save_folder, "/", "plot-{}.jpg".format(label)])
+        path = "".join([image_res_save_folder, "/", "plot-{}.jpg".format(label)])
         plt.savefig(path)
 
 
 def default_loader(path):
     '''given an input of path, return the tensor file'''
     arr = np.load(path)[np.newaxis, :]
-    if data_type=='O3':
+    if data_type == 'O3':
         arr = (arr - n.O3_min) / (n.O3_max - n.O3_min)
     else:
         arr = (arr - n.PM25_min) / (n.PM25_max - n.PM25_min)
@@ -252,12 +259,9 @@ criterion = nn.BCELoss()
 # Setup Adam optimizers for both G and D
 optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
-
-# %%
-print("Starting Training Loop...")
-print("epoch {}, batchsize {}".format(epochNum, batchSize))
-print("train {} time of G to 1 time of D".format(GTrainNumber))
+#%%
 # For each epoch
+print("Starting Training Loop...")
 for epoch in range(epochNum):
     # For each batch in the dataloader
     for i, data in enumerate(trainLoader, 0):
@@ -330,12 +334,20 @@ for epoch in range(epochNum):
                 '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                 % (epoch, epochNum, i, len(trainLoader), errD.item(),
                    errG.item(), D_x, D_G_z1, D_G_z2))
-            plot_distribution(netG(sample_img)[0][0].detach().cpu(),
-                              label="fake-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder=save_folder)
-            plot_distribution(real_img[0][0].cpu(),
-                              label="real-epoch-{}-batch-{}".format(epoch, i),
-                              save_folder=save_folder)
+
+            gen_arr = np.array(netG(sample_img)[0][0].detach().cpu())
+            real_arr = np.array(real_img[0][0].cpu())
+            np.save(
+                image_res_save_folder + "/" +
+                "image_array_gen_real_epoch{}_batch{}.npy".format(epoch, i),
+                np.array([epoch, i, gen_arr, real_arr]))
+            # plot distribution
+            # plot_distribution(netG(sample_img)[0][0].detach().cpu(),
+            #                   label="fake-epoch-{}-batch-{}".format(epoch, i),
+            #                   image_res_save_folder=image_res_save_folder)
+            # plot_distribution(real_img[0][0].cpu(),
+            #                   label="real-epoch-{}-batch-{}".format(epoch, i),
+            #                   image_res_save_folder=image_res_save_folder)
         # Save Losses for plotting later
         G_losses.append(errG.item())
         D_losses.append(errD.item())
@@ -351,3 +363,23 @@ for epoch in range(epochNum):
     np.save(suspect_data_list_save_path, np.array(suspect_data_list))
 
 #%%
+print("model training finished, start saving model...")
+model_save_base = "saved/model/"
+D_path = model_save_base + "netD-saved-{}-{}.pt".format(data_type, time_str)
+G_path = model_save_base + "netG-saved-{}-{}.pt".format(data_type, time_str)
+torch.save(netD, D_path)
+torch.save(netG, G_path)
+print("model D and G saved at {}".format(model_save_base))
+
+# load_netD = torch.load(D_path)
+# load_netG = torch.load(G_path)
+# #%%
+# load_netD.eval()
+# load_netG.eval()
+# # %%
+# plot_distribution(load_netG.forward(real_img)[0][0].detach().cpu().numpy())
+# # %%
+# plot_distribution(real_img[0][0].detach().cpu().numpy())
+# # %%
+
+# %%
