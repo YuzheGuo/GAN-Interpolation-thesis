@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+
+
 # %%
 def plot_distribution(data_array: np.array):
     """
@@ -15,11 +17,16 @@ def plot_distribution(data_array: np.array):
     y = np.arange(0, shape[0])  # len = 7
 
     fig, ax = plt.subplots(dpi=150)
-    pcm = ax.pcolormesh(x, y, data_array, vmax=data_array.max(), vmin=0, cmap="Blues")
+    pcm = ax.pcolormesh(x,
+                        y,
+                        data_array,
+                        vmax=data_array.max(),
+                        vmin=0,
+                        cmap="Blues")
     fig.colorbar(pcm, ax=ax)
 
 
-def array_to_dataframe(arr: np.array)-> pd.DataFrame:
+def array_to_dataframe(arr: np.array) -> pd.DataFrame:
     '''
     array-> df: x, y, val
     '''
@@ -29,12 +36,15 @@ def array_to_dataframe(arr: np.array)-> pd.DataFrame:
     for x in range(x_lim):
         for y in range(y_lim):
             val = arr[x][y]
-            if val>0:
+            if val > 0:
                 raw_data.append([x, y, val])
     return pd.DataFrame(raw_data, columns=['x', 'y', 'val'])
+
+
 # %%
 
-def OK_interpolation(arr: np.array)-> np.array:
+
+def OK_interpolation(arr: np.array) -> np.array:
     """
     input: array need to be interpolate, zero is none
     output: the array, which is interpolated.
@@ -46,15 +56,16 @@ def OK_interpolation(arr: np.array)-> np.array:
     yGrid = np.linspace(0, 32, 32)
     z, ss = OK.execute('grid', xGrid, yGrid)
     return z
+
+
 # %%
 #%%
 if __name__ == "__main__":
 
     path = '../data/O3_hourly_32_sh_sample_by_station/'
-    arr = np.load(path+os.listdir(path)[20], allow_pickle=True)
+    arr = np.load(path + os.listdir(path)[20], allow_pickle=True)
     plot_distribution(arr)
     z = OK_interpolation(arr)
     plot_distribution(z)
-
 
 # %%

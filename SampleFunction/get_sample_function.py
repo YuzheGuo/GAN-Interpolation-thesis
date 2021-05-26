@@ -16,7 +16,7 @@ import pickle
 def get_location_array(basePath):
     # print(os.listdir())
     nameList = os.listdir(basePath)
-    path = basePath + nameList[10]
+    path = basePath + nameList[0]
     file_obj = nc.Dataset(path)
     lon = file_obj.variables['longitude'][:]
     lat = file_obj.variables['latitude'][:]
@@ -66,7 +66,7 @@ def get_nearist_index(location_array: np.array, location: tuple)-> tuple:
 # %%
 
 def get_national_station_location_set(path):
-    df = pd.read_excel(path, engine='openpyxl')
+    df = pd.read_csv(path)
     LocationSet = set()
     for loc in np.array(df[['lng', 'lat']]):
         loc_tuple = (loc[0], loc[1])
@@ -97,14 +97,14 @@ def SampleByStation(data_arr: np.array, IndexSet: set)-> np.array:
 if __name__=="__main__":
 
     '''get the Set of index'''
-    basePath = 'D:/大学/大四上/毕业设计-GAN插值-空气质量模型/WorkSpace-thesis/Cmax_test/data/china_camx_original/'
+    basePath = 'D:/thesis_helper/'
     res_arr = get_location_array(basePath)
     print(res_arr)
-    # path = 'station_location.xlsx'
-    # NationalStationLocationSet = get_national_station_location_set(path)
-    # IndexSet = get_index_set(res_arr, NationalStationLocationSet)
-    # # print(len(IndexSet))
-    # np.save('IndexSet.npy', np.array(list(IndexSet)))
+    path = 'province_station_loc.csv'
+    NationalStationLocationSet = get_national_station_location_set(path)
+    IndexSet = get_index_set(res_arr, NationalStationLocationSet)
+    print(len(IndexSet))
+    np.save('IndexSet-province.npy', np.array(list(IndexSet)))
     # print(IndexSet.pop())
 
     '''read Set of index'''

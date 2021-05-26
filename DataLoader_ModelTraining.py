@@ -20,7 +20,8 @@ print("the time_str is: ", time_str)
 
 epochNum = 200
 batchSize = 128
-displayStep = 10
+displayStep = 5
+epoch_save_step = 50
 GTrainNumber = 1  # the num of G trained to 1 D changed
 maxGap = 10  # gap is the loss change amount
 
@@ -40,6 +41,7 @@ realBase = 'data/data-final-copy/{}_hourly_32_sh/'.format(data_type)
 sampleBase = 'data/data-final-copy/{}_hourly_32_sh_sample_by_station/'.format(
     data_type)
 image_res_save_folder = "saved/{}_res_plot_32-{}".format(data_type, time_str)
+model_save_base = "saved/model/"
 
 os.mkdir(image_res_save_folder)
 print("create dir for save results: {}".format(image_res_save_folder))
@@ -66,7 +68,9 @@ print("train {} time of G to 1 time of D".format(GTrainNumber))
 #     #transforms.CenterCrop(224),
 #     transforms.Normalize(0, 1)
 # ])
-def plot_distribution(data_array: np.array, label=None, image_res_save_folder=None):
+def plot_distribution(data_array: np.array,
+                      label=None,
+                      image_res_save_folder=None):
     '''
     输入二维的array，输出相应的面积图片
     label: the label if this photo
@@ -89,7 +93,8 @@ def plot_distribution(data_array: np.array, label=None, image_res_save_folder=No
     if not image_res_save_folder:
         plt.show()
     else:
-        path = "".join([image_res_save_folder, "/", "plot-{}.jpg".format(label)])
+        path = "".join(
+            [image_res_save_folder, "/", "plot-{}.jpg".format(label)])
         plt.savefig(path)
 
 
@@ -361,25 +366,29 @@ for epoch in range(epochNum):
 
     np.save(loss_save_path, np.array([G_losses, D_losses]))
     np.save(suspect_data_list_save_path, np.array(suspect_data_list))
-
+    if epoch>0 and (epoch+1)%epoch_save_step==0:
+        
+        D_path = model_save_base + "netD-saved-{}-epoch{}-{}.pt".format(data_type, epoch, time_str)
+        G_path = model_save_base + "netG-saved-{}-epoch{}-{}.pt".format(data_type, epoch, time_str)
+        torch.save(netD.state_dict(), D_path)
+        torch.save(netG.state_dict(), G_path)
+        print("on epoch {}, saved model D and G".format(epoch))
 #%%
 print("model training finished, start saving model...")
-model_save_base = "saved/model/"
-D_path = model_save_base + "netD-saved-{}-{}.pt".format(data_type, time_str)
-G_path = model_save_base + "netG-saved-{}-{}.pt".format(data_type, time_str)
-torch.save(netD, D_path)
-torch.save(netG, G_path)
+D_path = model_save_base + "netD-saved-{}-final-{}.pt".format(data_type, time_str)
+G_path = model_save_base + "netG-saved-{}-final-{}.pt".format(data_type, time_str)
+torch.save(netD.state_dict(), D_path)
+torch.save(netG.state_dict(), G_path)
 print("model D and G saved at {}".format(model_save_base))
-
+#%%
 # load_netD = torch.load(D_path)
 # load_netG = torch.load(G_path)
-# #%%
 # load_netD.eval()
 # load_netG.eval()
 # # %%
 # plot_distribution(load_netG.forward(real_img)[0][0].detach().cpu().numpy())
 # # %%
 # plot_distribution(real_img[0][0].detach().cpu().numpy())
-# # %%
+# %%
 
 # %%
