@@ -35,10 +35,6 @@ def plot_distribution(data_array: np.array, label=None, image_res_save_folder=No
         path = "".join([image_res_save_folder, "/", "plot-{}.jpg".format(label)])
         plt.savefig(path)
 
-with open('CN-border-La.dat') as src:
-    context = src.read()
-    blocks = [cnt for cnt in context.split('>') if len(cnt) > 0]
-    borders = [np.fromstring(block, dtype=float, sep=' ') for block in blocks]
 #%%
 def plot_distribution_with_border():
     pass
@@ -86,6 +82,12 @@ def plot_distribution_with_borders(arr: np.array, vmin=None, vmax=None):
     return ax
 
 if __name__ == "__main__":
+    
+    with open('CN-border-La.dat') as src:
+        context = src.read()
+        blocks = [cnt for cnt in context.split('>') if len(cnt) > 0]
+        borders = [np.fromstring(block, dtype=float, sep=' ') for block in blocks]
+
     path = "D:\大学\大四上\毕业设计-GAN插值-空气质量模型\WorkSpace-thesis\Cmax_test\SampleFunction\station_location.csv"
     df_station = pd.read_csv(path)
     path_pr = "province_station_loc.csv"

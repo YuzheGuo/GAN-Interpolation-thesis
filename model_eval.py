@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error as mse
 import normalization as n
 from IDW_OK.IDW_func import IDW_interpolation
 from IDW_OK.OK_func import OK_interpolation
-from plot_distribution_func.image_plot import plot_distribution
+from plot_func.image_plot import plot_distribution
 
 def cal_print_error_list(error_list: list):
     """
@@ -196,7 +196,7 @@ def load_gan_model(path):
 O3_test_dataset = build_test_array_dataset("O3")
 PM25_test_dataset = build_test_array_dataset("PM25")
 
-for data_type in ["O3", "PM25"]:
+for data_type in ["PM25"]:
     print("data type is: ", data_type)
     if data_type == "O3":
         sample = np.array([np.array([i[0]]) for i in O3_test_dataset])
@@ -234,7 +234,7 @@ for data_type in ["O3", "PM25"]:
 
     def get_province_index_list():
         """read the province index csv, return [(2, 5)]"""
-        pr_index = list(np.load("SampleFunction/IndexSet-province.npy", allow_pickle=True))
+        pr_index = list(np.load("sample_func/IndexSet-province.npy", allow_pickle=True))
         pr_index = [(i[0]-65, i[1]-196) for i in pr_index]
         return pr_index
 
@@ -407,24 +407,3 @@ for i, data in enumerate(O3_test_dataset):
 #     IDW_arr = IDW_interpolation(sample)
 # end = time.time()
 # print('Running time: {} Seconds'.format(end-start))
-# %%
-test_photo = sample[:1][0][0]
-length = len(test_photo)
-for i in range(length):
-    for j in range(length):
-        if test_photo[i][j]>0:
-            if random.random()>0.9:
-                print("change!")
-                test_photo[i][j] = 0
-
-# %%
-sample = np.array([np.array([test_photo])])
-# sample = (sample - n.PM25_min)/(n.PM25_max-n.PM25_min) # change to PM25
-# real = (real - n.O3_min)/(n.O3_max-n.O3_min)
-
-sample_tensor = torch.from_numpy(sample).float()
-res = netG(sample_tensor).detach().numpy()
-plot_distribution(res[0][0])
-# %%
-plot_distribution(real[:1][0][0])
-# %%
