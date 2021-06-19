@@ -1,4 +1,4 @@
-#%%
+# %%
 import math
 import torch
 import numpy as np
@@ -14,7 +14,8 @@ from sklearn.metrics import mean_squared_error as mse
 import normalization as n
 from IDW_OK.IDW_func import IDW_interpolation
 from IDW_OK.OK_func import OK_interpolation
-from plot_func.image_plot import plot_distribution
+from plot_func.image_plot import plot_distribution, plot_distribution_with_borders
+
 
 def cal_print_error_list(error_list: list):
     """
@@ -28,12 +29,15 @@ def cal_print_error_list(error_list: list):
         # print(key, ":", round(val,4))
     return res
 
+
 def build_test_array_dataset(data_type="O3"):
     """
     test dataset, in form of list, each element [sample, real]
     """
-    test_real_base = "data/data-final-copy/{}_hourly_32_sh_test/".format(data_type)
-    test_sample_base = "data/data-final-copy/{}_hourly_32_sh_sample_by_station_test/".format(data_type)
+    test_real_base = "data/data-final-copy/{}_hourly_32_sh_test/".format(
+        data_type)
+    test_sample_base = "data/data-final-copy/{}_hourly_32_sh_sample_by_station_test/".format(
+        data_type)
 
     test_dataset = []
     for real_img, sample_img in zip(os.listdir(test_real_base), os.listdir(test_sample_base)):
@@ -43,10 +47,29 @@ def build_test_array_dataset(data_type="O3"):
 
     return test_dataset
 
+
+def find_time_info_from_dataset(index: int, data_type="O3"):
+    """input: the index of test dataset
+    output: the name of the dataset"""
+
+    test_real_base = "data/data-final-copy/{}_hourly_32_sh_test/".format(
+        data_type)
+    test_sample_base = "data/data-final-copy/{}_hourly_32_sh_sample_by_station_test/".format(
+        data_type)
+    count = 0
+    for real_img, sample_img in zip(os.listdir(test_real_base), os.listdir(test_sample_base)):
+        if count == index:
+            return [real_img, sample_img]
+        count += 1
+
+
 def cal_abse(arr1, arr2):
     return np.abs(arr1 - arr2).mean()
+
+
 def cal_mse(arr1, arr2):
     return np.power(np.power(arr1 - arr2, 2).mean(), 0.5)
+
 
 def gan_model_predict(gan_model, data, data_type):
     """
@@ -54,19 +77,19 @@ def gan_model_predict(gan_model, data, data_type):
     input: gan model, data: 2-D or 4-D np arr, data_type: O3 or PM25
     output: np array, same as input dimention
     """
-    if not (len(data.shape)==2 or len(data.shape)==4):
+    if not (len(data.shape) == 2 or len(data.shape) == 4):
         print("data dimention error...")
         raise
 
-    if data_type=="PM25":
+    if data_type == "PM25":
         data_n = (data - n.PM25_min)/(n.PM25_max-n.PM25_min)
-    elif data_type=="O3":
+    elif data_type == "O3":
         data_n = (data - n.O3_min)/(n.O3_max-n.O3_min)
     else:
         print("data type error!!!")
         raise
-    
-    if len(data_n.shape)==2:
+
+    if len(data_n.shape) == 2:
         data_n = np.array([[data_n]])
 
     res = gan_model(torch.from_numpy(data_n).float()).detach().numpy()
@@ -74,12 +97,13 @@ def gan_model_predict(gan_model, data, data_type):
     if len(data.shape) == 2:
         res = res[0][0]
 
-    if data_type=="PM25":
+    if data_type == "PM25":
         res = res * (n.PM25_max-n.PM25_min) + n.PM25_min
     else:
         res = res * (n.O3_max-n.O3_min) + n.O3_min
-    
+
     return res
+
 
 def get_error_list(arr_res, arr_real, progress_step=None):
     """
@@ -89,7 +113,7 @@ def get_error_list(arr_res, arr_real, progress_step=None):
     error = arr_res - arr_real
     error_list_G = []
     count = 0
-    for e, sub_arr_real  in zip(error, arr_real):
+    for e, sub_arr_real in zip(error, arr_real):
         mean = sub_arr_real.mean()
         error_arr = e[0]
         e_res = dict()
@@ -100,11 +124,12 @@ def get_error_list(arr_res, arr_real, progress_step=None):
         e_res['r_mse_g'] = e_res['mse_g']/mean
         error_list_G.append(e_res)
 
-        if progress_step and count%progress_step == 0:
+        if progress_step and count % progress_step == 0:
             print(e_res)
 
         count += 1
     return error_list_G
+
 
 def get_station_location_list_from_array(arr: np.array):
     """
@@ -132,13 +157,15 @@ def build_omitted_dataset(dataset: np.array, rate: float):
 
     for data in arr:
         data = data[0]
-        sampled_val_index = random.sample(range(len(val_list)), num_points_deleted)
+        sampled_val_index = random.sample(
+            range(len(val_list)), num_points_deleted)
         sampled_val_list = [val_list[i] for i in sampled_val_index]
         for i, j in sampled_val_list:
             data[i][j] = 0
     val_list = []
-    
+
     return arr
+
 
 def load_gan_model(path):
     """
@@ -157,28 +184,31 @@ def load_gan_model(path):
             # 8 x 8 x 128
 
             self.layer3 = nn.Sequential(
-                nn.Conv2d(ngf * 2, ngf * 4, kernel_size=4, stride=2, padding=1),
+                nn.Conv2d(ngf * 2, ngf * 4, kernel_size=4,
+                          stride=2, padding=1),
                 nn.BatchNorm2d(ngf * 4), nn.LeakyReLU(0.2, inplace=True))
             # 4 x 4 x 256
             # 4 x 4 x 256
             self.layer4 = nn.Sequential(
                 nn.ConvTranspose2d(ngf * 4,
-                                ngf * 2,
-                                kernel_size=4,
-                                stride=2,
-                                padding=1), nn.BatchNorm2d(ngf * 2), nn.ReLU())
+                                   ngf * 2,
+                                   kernel_size=4,
+                                   stride=2,
+                                   padding=1), nn.BatchNorm2d(ngf * 2), nn.ReLU())
             # 8 x 8 x 128
             self.layer5 = nn.Sequential(
                 nn.ConvTranspose2d(ngf * 2,
-                                ngf,
-                                kernel_size=4,
-                                stride=2,
-                                padding=1), nn.BatchNorm2d(ngf), nn.ReLU())
+                                   ngf,
+                                   kernel_size=4,
+                                   stride=2,
+                                   padding=1), nn.BatchNorm2d(ngf), nn.ReLU())
             # 16 x 16 x 64
             self.layer6 = nn.Sequential(
-                nn.ConvTranspose2d(ngf, nc, kernel_size=4, stride=2, padding=1),
+                nn.ConvTranspose2d(ngf, nc, kernel_size=4,
+                                   stride=2, padding=1),
                 nn.Sigmoid())
             # 32 x 32 x 1
+
         def forward(self, _cpLayer):
             out = self.layer1(_cpLayer)
             out = self.layer2(out)
@@ -193,9 +223,80 @@ def load_gan_model(path):
     gan_model.eval()
     return gan_model
 
+
+def get_batch_from_str(name):
+    return int(name[name.find("batch")+5:name.find(".")])
+
+
+def get_epoch_from_str(name):
+    sub_name = name[name.find("epoch")+5:]
+    return int(sub_name[:sub_name.find("-")])
+
+def get_data_by_index(arr: np.array, index_list: list):
+    """arr: 2-D, index_list: [(1, 4), (4,6)]
+    return list of data"""
+    return [arr[i][j] for i, j in index_list]
+
+
 O3_test_dataset = build_test_array_dataset("O3")
 PM25_test_dataset = build_test_array_dataset("PM25")
 
+def dataset_generater:
+    pass 
+
+print("init finished...")
+# %%
+###############error distribution plotting############
+data_type = "O3"  # PM25
+label = "averaged error(μg/m3)" if data_type=="PM25" else "averaged error(ppb)"
+
+PM25_model_path = "saved/model/PM25-G/netG-saved-PM25-epoch999-20210523_174823.pt"
+O3_model_path = "saved/model/O3-G/netG-saved-O3-epoch959-20210523_174823.pt"
+choosed_dataset = PM25_test_dataset if data_type == "PM25" else O3_test_dataset
+choosed_model_path = PM25_model_path if data_type == "PM25" else O3_model_path
+
+# init the sample, real, model
+sample = np.array([np.array([i[0]]) for i in choosed_dataset])
+real = np.array([np.array([i[1]]) for i in choosed_dataset])
+model = load_gan_model(choosed_model_path)
+
+res = gan_model_predict(model, sample, data_type)
+error = np.abs(res-real)
+
+error_list = [i[0] for i in error]
+error_avg = np.zeros(shape=(32, 32))
+for i in range(32):
+    for j in range(32):
+        error_avg[i][j] = np.mean([data[i][j] for data in error_list])
+
+scale = 1 if data_type=="PM25" else 1000
+path = "saved/final-plot/{}_error_distribution_larger.jpg".format(data_type)
+plot_distribution_with_borders(error_avg*scale, save_path=path, colorbar_label=label)
+##########################end error distribution plot######################
+# %%
+"""
+# finished!!!
+index = 180 # pm25 180, o3 122
+info = find_time_info_from_dataset(index, "PM25")
+photo = sample[index][0]
+path = "saved/model/PM25-G/"
+res_list = []
+for name in os.listdir(path):
+    epoch = get_epoch_from_str(name)
+    print(epoch, name)
+    modelG = load_gan_model(path+name)
+    res = gan_model_predict(modelG, photo, "PM25")
+    res_list.append([epoch, res])
+
+save_dict = {"epoch_image": res_list, "real_image": real[index][0],
+"datetime": info}
+path = "saved/final-plot/PM25-test-image-show.npy"
+np.save(path, np.array([save_dict]))
+"""
+
+# %%
+
+"""compare point on index"""
 for data_type in ["PM25"]:
     print("data type is: ", data_type)
     if data_type == "O3":
@@ -210,11 +311,12 @@ for data_type in ["PM25"]:
 
     path_O3 = "saved/O3-G/netG-saved-O3-epoch959-20210523_174823.pt"
     path_PM25 = "saved/PM25-G/netG-saved-PM25-epoch999-20210523_174823.pt"
-    G = load_gan_model(path_O3) if data_type=="O3" else load_gan_model(path_PM25)
+    G = load_gan_model(
+        path_O3) if data_type == "O3" else load_gan_model(path_PM25)
 
     def count_value(arr):
         df = pd.DataFrame(arr)
-        index = df>0
+        index = df > 0
         return index.sum().sum()
 
     def get_data_by_index(arr: np.array, index_list: list):
@@ -228,13 +330,14 @@ for data_type in ["PM25"]:
         length = len(data)
         for i in range(length):
             for j in range(length):
-                if (data[i][j]> 0 and random.random()>rate):
+                if (data[i][j] > 0 and random.random() > rate):
                     data[i][j] = 0
         return data
 
     def get_province_index_list():
         """read the province index csv, return [(2, 5)]"""
-        pr_index = list(np.load("sample_func/IndexSet-province.npy", allow_pickle=True))
+        pr_index = list(
+            np.load("sample_func/IndexSet-province.npy", allow_pickle=True))
         pr_index = [(i[0]-65, i[1]-196) for i in pr_index]
         return pr_index
 
@@ -244,7 +347,7 @@ for data_type in ["PM25"]:
     for i, dataset in enumerate(zip(sample[:], real[:])):
         print(i, "/", len(sample))
         sample_data, real_data = dataset[0][0], dataset[1][0]
-        
+
         data_pred = sample_data.copy()
         # data_pred = sample_array(data_pred, 0.97)
         index_all = get_station_location_list_from_array(sample_data)
@@ -263,19 +366,21 @@ for data_type in ["PM25"]:
     # plt.scatter(real_array, ok_array, color="green")
     # plt.scatter(real_array, gan_array, color="red")
     saved_array = np.array([real_array, gan_array, idw_array, ok_array])
-    np.save("saved/final-plot/{}-province-point-compare.npy".format(data_type), saved_array)
+    np.save(
+        "saved/final-plot/{}-province-point-compare.npy".format(data_type), saved_array)
     print("res saved finished...")
-#%%
+# %%
 res_dict_list = []
 for name in os.listdir(path):
     net = load_gan_model(path+name)
     res = gan_model_predict(net, sample, "O3")
     error_list_G = get_error_list(res, real)
-    epoch = int(name[name.find("epoch")+5:][:name[name.find("epoch")+5:].find("-")])
+    epoch = int(name[name.find("epoch")+5:]
+                [:name[name.find("epoch")+5:].find("-")])
     print(epoch)
     res_dict_list.append([epoch, cal_print_error_list(error_list_G)])
 
-#%%
+# %%
 
 def plot_trend(x, y1, y2, xlabel, ylabel, size=(16, 10)):
     plt.rcParams['font.family'] = 'Arial'
@@ -293,15 +398,16 @@ def plot_trend(x, y1, y2, xlabel, ylabel, size=(16, 10)):
     ax.set_ylabel(ylabel, fontsize=fontsize)
     ax.legend(fontsize=fontsize, borderpad=0, frameon=0, ncol=size[0])
 
+
 res_dict_list.sort(key=lambda x: x[0])
 y1 = [i[1]['r_abse_g'] for i in res_dict_list]
 x = [i[0] for i in res_dict_list]
 y2 = [i[1]['r_mse_g'] for i in res_dict_list]
 
 
-# np.save("saved/final-plot/O3-test-error-per-epoch.npy", 
+# np.save("saved/final-plot/O3-test-error-per-epoch.npy",
 #             np.array(res_dict_list))
-#%%
+# %%
 path = "saved/O3-loss-32size-20210523_174823.npy"
 arr = np.load(path, allow_pickle=True)
 cut = [0, 620]
@@ -312,43 +418,80 @@ y2 = arr[1][cut[0]: cut[1]]
 # y2 = np.array(pd.DataFrame(y2).rolling(62).mean())
 plot_trend(x, y1, y2, "epoch", "loss")
 
-#%%
-path = 
+# %%
+"""print the compare of different models"""
 
+# var need to change: data_type, index, label
+data_type = "O3"  # PM25
+index = 500  # pm25: 120, o3:100, 120->100->500
+colorbar_label = "O3(ppb)" # "PM25(μg/m3)""
 
-imag = sample[10][0]
-arr = OK_interpolation(imag)
-plot_distribution(imag)
-plot_distribution(OK_interpolation(imag))
-plot_distribution(IDW_interpolation(imag))
-gan_img = gan_model_predict(netG, imag, "PM25")
-plot_distribution(gan_img)
-plot_distribution(real[10][0])
+PM25_model_path = "saved/model/PM25-G/netG-saved-PM25-epoch999-20210523_174823.pt"
+O3_model_path = "saved/model/O3-G/netG-saved-O3-epoch959-20210523_174823.pt"
+choosed_dataset = PM25_test_dataset if data_type == "PM25" else O3_test_dataset
+choosed_model_path = PM25_model_path if data_type == "PM25" else O3_model_path
 
-#%%
+# init the sample, real, model
+sample = np.array([np.array([i[0]]) for i in choosed_dataset])
+real = np.array([np.array([i[1]]) for i in choosed_dataset])
+model = load_gan_model(choosed_model_path)
+
+sample_img = sample[index][0]
+info = find_time_info_from_dataset(index, data_type)[0]
+info = info[:info.find(".")]
+print("data sype is: {}, time of the image is: {}".format(data_type, info))
+
+gan_img = gan_model_predict(model, sample_img, data_type)
+idw_img = IDW_interpolation(sample_img)
+ok_img = OK_interpolation(sample_img)
+real_img = real[index][0]
+val_min, val_max = np.min(real_img), np.max(real_img)
+
+print("min {} max {}, start plotting and saving the images...".format(val_min, val_max))
+path_gan = "saved/final-plot/{}_gan_{}.jpg".format(data_type, info)
+path_idw = "saved/final-plot/{}_idw_{}.jpg".format(data_type, info)
+path_ok = "saved/final-plot/{}_ok_{}.jpg".format(data_type, info)
+path_real = "saved/final-plot/{}_real_{}.jpg".format(data_type, info)
+path_sample = "saved/final-plot/{}_sample_{}.jpg".format(data_type, info)
+
+scale_index = 1 if data_type == "PM25" else 1000
+plot_distribution_with_borders(
+    gan_img*scale_index, val_min*scale_index, val_max*scale_index, save_path=path_gan, colorbar_label=colorbar_label)
+plot_distribution_with_borders(
+    idw_img*scale_index, val_min*scale_index, val_max*scale_index, save_path=path_idw, colorbar_label=colorbar_label)
+plot_distribution_with_borders(
+    ok_img*scale_index, val_min*scale_index, val_max*scale_index, save_path=path_ok, colorbar_label=colorbar_label)
+plot_distribution_with_borders(
+    real_img*scale_index, val_min*scale_index, val_max*scale_index, save_path=path_real, colorbar_label=colorbar_label)
+plot_distribution_with_borders(
+    sample_img*scale_index, val_min*scale_index, val_max*scale_index, save_path=path_sample, colorbar_label=colorbar_label)
+print("finished...")
+
+# %%
+sample = np.array([np.array([i[0]]) for i in PM25_test_dataset])
+real = np.array([np.array([i[1]]) for i in PM25_test_dataset])
+
 sample = np.array([np.array([i[0]]) for i in PM25_test_dataset])
 real = np.array([np.array([i[1]]) for i in PM25_test_dataset])
 res = gan_model_predict(netG, sample, "PM25")
 error_list_G = get_error_list(res, real, 1000)
 cal_print_error_list(error_list_G)
-#%%
-def get_data_by_index(arr: np.array, index_list: list):
-    """arr: 2-D, index_list: [(1, 4), (4,6)]
-    return list of data"""
-    return [arr[i][j] for i, j in index_list]
+# %%
+
+
 index_list = get_station_location_list_from_array(sample[0][0])
 lis1 = get_data_by_index(res[100][0], index_list)
 lis2 = get_data_by_index(real[100][0], index_list)
 print(mse(lis1, lis2))
 print(np.mean(lis1))
 plt.scatter(lis1, lis2)
-#%%
+# %%
 omitted = build_omitted_dataset(sample, 0.9)
 res = gan_model_predict(netG, omitted, data_type="PM25")
 error_list = get_error_list(res, real, 200)
 cal_print_error_list(error_list)
 
-#%%
+# %%
 """cal the error of IDW, OK, finished"""
 error_list = []
 step = 20
@@ -377,7 +520,7 @@ for i, data in enumerate(O3_test_dataset):
 
     error_list.append(e_res)
 
-    if (i%step==0):
+    if (i % step == 0):
         print("mean: ", mean)
         print(i, "/", len(O3_test_dataset))
         print(error_list[-1])
@@ -386,7 +529,7 @@ for i, data in enumerate(O3_test_dataset):
         # plot_distribution(data[1])
 # np.save("saved/IDW_OK_test/O3_error_IDW_OK.npy", np.array(error_list))
 
-#%%
+# %%
 # import time
 # start = time.time()
 # for i, data in enumerate(O3_test_dataset):

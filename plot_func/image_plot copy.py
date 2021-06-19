@@ -44,22 +44,21 @@ def plot_distribution(data_array: np.array, label=None, image_res_save_folder=No
                        "plot-{}.jpg".format(label)])
         plt.savefig(path)
 
+
 # %%
-with open('plot_func/CN-border-La.dat') as src:
+with open('CN-border-La.dat') as src:
     context = src.read()
     blocks = [cnt for cnt in context.split('>') if len(cnt) > 0]
     borders = [np.fromstring(block, dtype=float, sep=' ')
                for block in blocks]
-               
-def plot_distribution_with_borders(arr: np.array, vmin=None, 
-                                vmax=None, save_path=None,
-                                fontsize=40,
-                                colorbar_label="(μg/m3) or (ppb) or (ppm)"):
+
+
+def plot_distribution_with_borders(arr: np.array, vmin=None, vmax=None, save_path=None):
     """
     add province borders, return the photos!!!
     """
-    
     plt.rcParams['font.family'] = 'Arial'
+    fontsize = 20
     fig = plt.figure(figsize=[18, 12])
 
     limit = [116.42491455078125, 122.91134948730469,
@@ -82,7 +81,7 @@ def plot_distribution_with_borders(arr: np.array, vmin=None,
         norm = col.Normalize(vmin=vmin, vmax=vmax)
     p = ax.imshow(arr, norm=norm, cmap="jet", extent=limit, origin="lower")
     cbar = fig.colorbar(p, ax=ax, shrink=1)
-    cbar.set_label(colorbar_label, fontsize=fontsize)
+    cbar.set_label("O3 value(ppb)", fontsize=fontsize)
     cbar.ax.tick_params(labelsize=fontsize)
     fig.canvas.draw()
 
@@ -98,6 +97,31 @@ def plot_distribution_with_borders(arr: np.array, vmin=None,
     if save_path:
         fig.savefig(save_path, dpi=300)
     return ax
+#%%
+
+# %%
+path1 = "../saved/final-plot/PM25-test-image-show.npy"
+path2 = "../saved/final-plot/O3-test-image-show-20190211-3.npy"
+
+d_show = np.load(path2, allow_pickle=True)[0]
+epoch_list = [i[0] for i in d_show.get("epoch_image")]
+image_list = [i[1]*1000 for i in d_show.get("epoch_image")]
+real_image = d_show['real_image']*1000
+val_min, val_max = np.min(
+    real_image), np.max(real_image)
+print(val_min, val_max)
+
+for epoch, image in zip(epoch_list, image_list):
+    save_path = "../saved/final-plot/O3-image-predict-from-model-epoch-{}.png".format(
+        epoch)
+    plot_distribution_with_borders(
+        image, vmin=val_min, vmax=val_max, save_path=save_path)
+    print("on epoch {}, save finished...".format(epoch))
+
+plot_distribution_with_borders(
+    real_image, val_min, val_max, save_path="../saved/final-plot/O3-real-image.png")
+
+# %%
 
 
 def plot_estimation(Y_pred, Y_test, z, save_path=None):
@@ -187,14 +211,10 @@ if __name__ == "__main__":
         print("cal z finished")
         plot_estimation(pd.Series(x_pred), pd.Series(x_test), z, save_path)
     # %%
+    plt.plot(x_test, y_pred)
+    plt.savefig("")
 
-    with open('CN-border-La.dat') as src:
-        context = src.read()
-        blocks = [cnt for cnt in context.split('>') if len(cnt) > 0]
-        borders = [np.fromstring(block, dtype=float, sep=' ')
-                   for block in blocks]
-
-    path = "D:\大学\大四上\毕业设计-GAN插值-空气质量模型\WorkSpace-thesis\Cmax_test\sample_func\station_location.csv"
+    path = "D:\大学\大四上\毕业设计-GAN插值-空气质量模型\WorkSpace-thesis\Cmax_test\SampleFunction\station_location.csv"
     df_station = pd.read_csv(path)
     path_pr = "province_station_loc.csv"
     df_pr_station = pd.read_csv(path_pr)
@@ -222,80 +242,4 @@ if __name__ == "__main__":
     sample = np.array([np.array([i[0]]) for i in dataset])
     real = np.array([np.array([i[1]]) for i in dataset])
     data = real[0][0]
-    # %%
-    limit = [116.42491455078125, 122.91134948730469,
-             28.028094482421875, 33.68136672973633]
-    df = df_station
-    df_selected = df[df.lng < 122.91134948730469][df.lng >
-                                                  116.42491455078125][df.lat > 28.028][df.lat < 33.681]
-    city_list = list(df_selected.groupby(
-        by="city").count().sample(frac=0.9).index)
-    df_sample = df_selected[df_selected.city.isin(city_list)]
-    df_test = df.iloc[list(set(df_selected.index) - set(df_sample.index)), :]
-    # %%
-    limit = [116.42491455078125, 122.91134948730469,
-             28.028094482421875, 33.68136672973633]
-    center_lat, center_lon = 0.5 * \
-        (limit[2] + limit[3]), 0.5*(limit[0] + limit[1])
-    plt.rcParams['font.family'] = 'Arial'
-    fontsize = 20
-    fig = plt.figure(figsize=[12, 12])
-    # Set projection and plot the main figure
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.set_extent(limit, crs=ccrs.PlateCarree())
-    # Add ocean, land, rivers and lakes
-    # ax.add_feature(cfeature.OCEAN.with_scale('110m'))
-    # ax.add_feature(cfeature.LAND.with_scale('110m'))
-    ax.add_feature(cfeature.RIVERS.with_scale('50m'))
-    ax.add_feature(cfeature.LAKES.with_scale('50m'))
-    # Plot gridlines
-    ax.gridlines(linestyle='--')
-    # Set figure extent
-    # Plot border lines
-    for line in borders:
-        ax.plot(line[0::2], line[1::2], '--', lw=0.6, color='black',
-                transform=ccrs.PlateCarree())
-
-    # ax.plot(df_sample.lng, df_sample.lat, 'o', color='blue',
-    #         label='sampled stations', markersize=2, transform=ccrs.Geodetic())
-
-    ax.plot(df_station.lng, df_station.lat, 'o', color='blue',
-            label='national stations', markersize=2.5, transform=ccrs.Geodetic())
-    ax.plot(df_pr_station.lng, df_pr_station.lat, 'o', color='red',
-            label='province stations', markersize=2.5, transform=ccrs.Geodetic())
-
-    ax.legend(fontsize=fontsize, loc="upper right")
-    norm = col.Normalize(vmin=0.0, vmax=50)
-    # ax.imshow(data, norm=norm, cmap="Blues", extent=limit, origin="lower")
-    # fig.canvas.draw()
-    xticks = np.arange(int(limit[0])+1, int(limit[1])+1.01, 1)
-    yticks = np.arange(int(limit[2])+1, int(limit[3])+1.01, 1)
-    ax.set_xlabel("longitude", fontsize=fontsize)
-    ax.set_ylabel("latitude", fontsize=fontsize)
-    ax.tick_params(axis='x', labelsize=fontsize)
-    ax.tick_params(axis='y', labelsize=fontsize)
-    ax.set_xticks(xticks)
-    ax.set_yticks(yticks)
-    fig.savefig("../saved/final-plot/national_province_stations.png", dpi=300)
-    # %%
-
-    # %%
-
-    # Plot South China Sea as a subfigure
-    sub_ax = fig.add_axes([0.741, 0.11, 0.14, 0.155],
-                          projection=ccrs.LambertConformal(central_latitude=30,
-                                                           central_longitude=119))
-    # Add ocean, land, rivers and lakes
-    sub_ax.add_feature(cfeature.OCEAN.with_scale('110m'))
-    sub_ax.add_feature(cfeature.LAND.with_scale('110m'))
-    # sub_ax.add_feature(cfeature.RIVERS.with_scale('50m'))
-    # sub_ax.add_feature(cfeature.LAKES.with_scale('50m'))
-    # Plot border lines
-    for line in borders:
-        sub_ax.plot(line[0::2], line[1::2], '-', lw=1, color='k',
-                    transform=ccrs.Geodetic())
-    # Set figure extent
-    sub_ax.set_extent([105, 125, 0, 25])
-    # Show figure
-    plt.show()
-    # %%
+   

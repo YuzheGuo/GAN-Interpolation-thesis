@@ -1,10 +1,9 @@
-#%%
+# %%
 from pykrige.ok import OrdinaryKriging
 import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-
 
 # %%
 def plot_distribution(data_array: np.array):
@@ -52,20 +51,27 @@ def OK_interpolation(arr: np.array) -> np.array:
     """
     df = array_to_dataframe(arr)
     OK = OrdinaryKriging(df.x, df.y, df.val)
-    xGrid = np.linspace(0, 32, 32)
-    yGrid = np.linspace(0, 32, 32)
+    xGrid = np.arange(0, 32.1, 1)
+    yGrid = np.arange(0, 32.1, 1)
     z, ss = OK.execute('grid', xGrid, yGrid)
+    # fix the dimention problem: need to rotate and flip unside down
+    z = np.flipud(np.rot90(np.array(z)))
     return z
 
 
 # %%
-#%%
+# %%
 if __name__ == "__main__":
 
     path = '../data/O3_hourly_32_sh_sample_by_station/'
-    arr = np.load(path + os.listdir(path)[20], allow_pickle=True)
+    arr = np.load(path + os.listdir(path)[2], allow_pickle=True)
+    path2 = '../data/O3_hourly_32/'
+    arr_real = np.load(path2 + os.listdir(path2)[2], allow_pickle=True)
+    plot_distribution(arr_real)
     plot_distribution(arr)
     z = OK_interpolation(arr)
     plot_distribution(z)
+    plot_distribution(np.rot90(z, -1))
+    plot_distribution(np.flipud(z))
 
 # %%
